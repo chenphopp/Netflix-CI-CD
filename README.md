@@ -774,3 +774,346 @@ stage view
 You will get this output
 
 ![image](https://github.com/chenphopp/Netflix-CI-CD/assets/82653803/2d160751-dfc3-4e53-a73d-6941a797dd2b)
+
+### Step 11 — Kuberenetes Setup
+
+Take-Two Ubuntu 20.04 instances one for k8s master and the other one for worker.
+
+Install Kubectl on Jenkins machine also.
+
+Kubectl is to be installed on Jenkins also
+```
+sudo apt update
+sudo apt install curl
+curl -LO https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+kubectl version --client
+```
+
+Part 1 ----------Master Node------------
+```
+sudo hostnamectl set-hostname K8s-Master
+```
+
+----------Worker Node------------
+```
+sudo hostnamectl set-hostname K8s-Worker
+```
+
+Part 2 ------------Both Master & Node ------------
+```
+sudo apt-get update 
+
+sudo apt-get install -y docker.io
+sudo usermod –aG docker Ubuntu
+newgrp docker
+sudo chmod 777 /var/run/docker.sock
+
+sudo curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+
+sudo tee /etc/apt/sources.list.d/kubernetes.list <<EOF
+deb https://apt.kubernetes.io/ kubernetes-xenial main
+EOF
+
+sudo apt-get update
+
+sudo apt-get install -y kubelet kubeadm kubectl
+
+sudo snap install kube-apiserver
+```
+
+Part 3 --------------- Master ---------------
+```
+sudo kubeadm init --pod-network-cidr=10.244.0.0/16
+# in case your in root exit from it and run below commands
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+```
+
+----------Worker Node------------
+```
+sudo kubeadm join <master-node-ip>:<master-node-port> --token <token> --discovery-token-ca-cert-hash <hash>
+```
+
+Copy the config file to Jenkins master or the local file manager and save it
+```
+cd .kube
+cat config
+```
+
+![image](https://github.com/chenphopp/Netflix-CI-CD/assets/82653803/56fe2258-7495-4c9a-9c9b-0724bd5d5cb4)
+
+copy it and save it in documents or another folder save it as secret-file.txt
+
+Note: create a secret-file.txt in your file explorer save the config in it and use this at the kubernetes credential section.
+
+Install Kubernetes Plugin, Once it's installed successfully
+
+![image](https://github.com/chenphopp/Netflix-CI-CD/assets/82653803/d670d07d-d16a-4b2b-8c1a-68eb77dba68c)
+
+goto manage Jenkins --> manage credentials --> Click on Jenkins global --> add credentials
+
+
+Install Node_exporter on both master and worker
+Let's add Node_exporter on Master and Worker to monitor the metrics
+
+First, let's create a system user for Node Exporter by running the following command:
+```
+sudo useradd \
+    --system \
+    --no-create-home \
+    --shell /bin/false node_exporter
+```
+You can download Node Exporter from the same page.
+
+Use the wget command to download the binary.
+```
+wget https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz
+```
+
+Extract the node exporter from the archive.
+```
+tar -xvf node_exporter-1.6.1.linux-amd64.tar.gz
+```
+
+Move binary to the /usr/local/bin.
+```
+sudo mv \
+  node_exporter-1.6.1.linux-amd64/node_exporter \
+  /usr/local/bin/
+```
+
+Clean up, and delete node_exporter archive and a folder.
+```
+rm -rf node_exporter*
+```
+
+Verify that you can run the binary.
+```
+node_exporter --version
+```
+
+Node Exporter has a lot of plugins that we can enable. If you run Node Exporter help you will get all the options.
+```
+node_exporter --help
+```
+
+Next, create a similar systemd unit file.
+```
+sudo vim /etc/systemd/system/node_exporter.service
+```
+```
+[Unit]
+Description=Node Exporter
+Wants=network-online.target
+After=network-online.target
+
+StartLimitIntervalSec=500
+StartLimitBurst=5
+
+[Service]
+User=node_exporter
+Group=node_exporter
+Type=simple
+Restart=on-failure
+RestartSec=5s
+ExecStart=/usr/local/bin/node_exporter \
+    --collector.logind
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Replace Prometheus user and group to node_exporter, and update the ExecStart command.
+
+To automatically start the Node Exporter after reboot, enable the service.
+```
+sudo systemctl enable node_exporter
+```
+
+Then start the Node Exporter.
+```
+sudo systemctl start node_exporter
+```
+
+Check the status of Node Exporter with the following command:
+```
+sudo systemctl status node_exporter
+```
+
+If you have any issues, check logs with journalctl
+```
+journalctl -u node_exporter -f --no-pager
+```
+
+At this point, we have only a single target in our Prometheus. There are many different service discovery mechanisms built into Prometheus. For example, Prometheus can dynamically discover targets in AWS, GCP, and other clouds based on the labels. In the following tutorials, I'll give you a few examples of deploying Prometheus in a cloud-specific environment. For this tutorial, let's keep it simple and keep adding static targets. Also, I have a lesson on how to deploy and manage Prometheus in the Kubernetes cluster.
+
+To create a static target, you need to add job_name with static_configs. Go to Prometheus server
+```
+sudo vim /etc/prometheus/prometheus.yml
+```
+```
+  - job_name: node_export_masterk8s
+    static_configs:
+      - targets: ["<master-ip>:9100"]
+
+  - job_name: node_export_workerk8s
+    static_configs:
+      - targets: ["<worker-ip>:9100"]
+```
+
+By default, Node Exporter will be exposed on port 9100.
+
+
+Since we enabled lifecycle management via API calls, we can reload the Prometheus config without restarting the service and causing downtime.
+
+Before, restarting check if the config is valid.
+```
+promtool check config /etc/prometheus/prometheus.yml
+```
+
+Then, you can use a POST request to reload the config.
+```
+curl -X POST http://localhost:9090/-/reload
+```
+
+Check the targets section
+```
+http://<ip>:9090/targets
+```
+
+final step to deploy on the Kubernetes cluster
+```
+stage('Deploy to kubernets'){
+            steps{
+                script{
+                    dir('Kubernetes') {
+                        withKubeConfig(caCertificate: '', clusterName: '', contextName: '', credentialsId: 'k8s', namespace: '', restrictKubeConfigAccess: false, serverUrl: '') {
+                                sh 'kubectl apply -f deployment.yml'
+                                sh 'kubectl apply -f service.yml'
+                        }   
+                    }
+                }
+            }
+        }
+```
+
+stage view
+
+
+In the Kubernetes cluster(master) give this command
+```
+kubectl get all 
+kubectl get svc #use anyone
+```
+
+## STEP 12:Access from a Web browser with
+<public-ip-of-slave:service port>
+
+output:
+
+
+## Step 13: Terminate instances.
+Complete Pipeline
+```
+pipeline{
+    agent any
+    tools{
+        jdk 'jdk17'
+        nodejs 'node16'
+    }
+    environment {
+        SCANNER_HOME=tool 'sonar-scanner'
+    }
+    stages {
+        stage('clean workspace'){
+            steps{
+                cleanWs()
+            }
+        }
+        stage('Checkout from Git'){
+            steps{
+                git branch: 'main', url: 'https://github.com/Aj7Ay/Netflix-clone.git'
+            }
+        }
+        stage("Sonarqube Analysis "){
+            steps{
+                withSonarQubeEnv('sonar-server') {
+                    sh ''' $SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName=Netflix \
+                    -Dsonar.projectKey=Netflix '''
+                }
+            }
+        }
+        stage("quality gate"){
+           steps {
+                script {
+                    waitForQualityGate abortPipeline: false, credentialsId: 'Sonar-token' 
+                }
+            } 
+        }
+        stage('Install Dependencies') {
+            steps {
+                sh "npm install"
+            }
+        }
+        stage('OWASP FS SCAN') {
+            steps {
+                dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
+                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+            }
+        }
+        stage('TRIVY FS SCAN') {
+            steps {
+                sh "trivy fs . > trivyfs.txt"
+            }
+        }
+        stage("Docker Build & Push"){
+            steps{
+                script{
+                   withDockerRegistry(credentialsId: 'docker', toolName: 'docker'){   
+                       sh "docker build --build-arg TMDB_V3_API_KEY=AJ7AYe14eca3e76864yah319b92 -t netflix ."
+                       sh "docker tag netflix sevenajay/netflix:latest "
+                       sh "docker push sevenajay/netflix:latest "
+                    }
+                }
+            }
+        }
+        stage("TRIVY"){
+            steps{
+                sh "trivy image sevenajay/netflix:latest > trivyimage.txt" 
+            }
+        }
+        stage('Deploy to container'){
+            steps{
+                sh 'docker run -d --name netflix -p 8081:80 sevenajay/netflix:latest'
+            }
+        }
+        stage('Deploy to kubernets'){
+            steps{
+                script{
+                    dir('Kubernetes') {
+                        withKubeConfig(caCertificate: '', clusterName: '', contextName: '', credentialsId: 'k8s', namespace: '', restrictKubeConfigAccess: false, serverUrl: '') {
+                                sh 'kubectl apply -f deployment.yml'
+                                sh 'kubectl apply -f service.yml'
+                        }   
+                    }
+                }
+            }
+        }
+
+    }
+    post {
+     always {
+        emailext attachLog: true,
+            subject: "'${currentBuild.result}'",
+            body: "Project: ${env.JOB_NAME}<br/>" +
+                "Build Number: ${env.BUILD_NUMBER}<br/>" +
+                "URL: ${env.BUILD_URL}<br/>",
+            to: 'postbox.aj99@gmail.com',
+            attachmentsPattern: 'trivyfs.txt,trivyimage.txt'
+        }
+    }
+}
+```
