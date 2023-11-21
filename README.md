@@ -100,147 +100,74 @@ Next, we will create a TMDB API key
 
 ![image](https://github.com/chenphopp/Netflix-CI-CD/assets/82653803/50b10b11-1997-41fc-88fa-a283bb3a9ec5)
 
-Step 4 — Install Prometheus and Grafana On the new Server
-First of all, let's create a dedicated Linux user sometimes called a system account for Prometheus. Having individual users for each service serves two main purposes:
-
-It is a security measure to reduce the impact in case of an incident with the service.
-
-It simplifies administration as it becomes easier to track down what resources belong to which service.
-
-To create a system user or system account, run the following command:
-
-
-COPY
-
-COPY
+## Step 4 — Install Prometheus and Grafana On the new Server
+```
 sudo useradd \
     --system \
     --no-create-home \
     --shell /bin/false prometheus
-
-
+```
 --system - Will create a system account.
 --no-create-home - We don't need a home directory for Prometheus or any other system accounts in our case.
 --shell /bin/false - It prevents logging in as a Prometheus user.
 Prometheus - Will create a Prometheus user and a group with the same name.
 
-Let's check the latest version of Prometheus from the download page.
-
 You can use the curl or wget command to download Prometheus.
-
-
-COPY
-
-COPY
+```
 wget https://github.com/prometheus/prometheus/releases/download/v2.47.1/prometheus-2.47.1.linux-amd64.tar.gz
-
-
-Then, we need to extract all Prometheus files from the archive.
-
-
-COPY
-
-COPY
+```
+```
 tar -xvf prometheus-2.47.1.linux-amd64.tar.gz
-
+```
 
 Usually, you would have a disk mounted to the data directory. For this tutorial, I will simply create a /data directory. Also, you need a folder for Prometheus configuration files.
-
-
-COPY
-
-COPY
+```
 sudo mkdir -p /data /etc/prometheus
-
+```
 
 Now, let's change the directory to Prometheus and move some files.
-
-
-COPY
-
-COPY
+```
 cd prometheus-2.47.1.linux-amd64/
-
+```
 
 First of all, let's move the Prometheus binary and a promtool to the /usr/local/bin/. promtool is used to check configuration files and Prometheus rules.
-
-
-COPY
-
-COPY
+```
 sudo mv prometheus promtool /usr/local/bin/
-
+```
 
 Optionally, we can move console libraries to the Prometheus configuration directory. Console templates allow for the creation of arbitrary consoles using the Go templating language. You don't need to worry about it if you're just getting started.
-
-
-COPY
-
-COPY
+```
 sudo mv consoles/ console_libraries/ /etc/prometheus/
-
+```
 
 Finally, let's move the example of the main Prometheus configuration file.
-
-
-COPY
-
-COPY
+```
 sudo mv prometheus.yml /etc/prometheus/prometheus.yml
-
+```
 
 To avoid permission issues, you need to set the correct ownership for the /etc/prometheus/ and data directory.
-
-
-COPY
-
-COPY
+```
 sudo chown -R prometheus:prometheus /etc/prometheus/ /data/
-
+```
 
 You can delete the archive and a Prometheus folder when you are done.
-
-
-COPY
-
-COPY
+```
 cd
 rm -rf prometheus-2.47.1.linux-amd64.tar.gz
-
+```
 
 Verify that you can execute the Prometheus binary by running the following command:
-
-
-COPY
-
-COPY
+```
 prometheus --version
+```
 
-
-To get more information and configuration options, run Prometheus Help.
-
-
-COPY
-
-COPY
-prometheus --help
 We're going to use some of these options in the service definition.
 
 We're going to use Systemd, which is a system and service manager for Linux operating systems. For that, we need to create a Systemd unit configuration file.
-
-
-COPY
-
-COPY
+```
 sudo vim /etc/systemd/system/prometheus.service
-
-
-Prometheus.service
-
-
-COPY
-
-COPY
+```
+```
 [Unit]
 Description=Prometheus
 Wants=network-online.target
@@ -265,7 +192,7 @@ ExecStart=/usr/local/bin/prometheus \
 
 [Install]
 WantedBy=multi-user.target
-
+```
 
 Let's go over a few of the most important options related to Systemd and Prometheus. Restart - Configures whether the service shall be restarted when the service process exits, is killed, or a timeout is reached.
 RestartSec - Configures the time to sleep before restarting a service.
@@ -276,38 +203,14 @@ User and Group - Are Linux user and a group to start a Prometheus process.
 --web.enable-lifecycle -- Allows to manage Prometheus, for example, to reload configuration without restarting the service.
 
 To automatically start the Prometheus after reboot, run enable.
-
-
-COPY
-
-COPY
+```
 sudo systemctl enable prometheus
-
-
-Then just start the Prometheus.
-
-
-COPY
-
-COPY
 sudo systemctl start prometheus
-
-
-To check the status of Prometheus run the following command:
-
-
-COPY
-
-COPY
 sudo systemctl status prometheus
-
+```
 
 Suppose you encounter any issues with Prometheus or are unable to start it. The easiest way to find the problem is to use the journalctl command and search for errors.
-
-
-COPY
-
-COPY
+```
 journalctl -u prometheus -f --no-pager
 Now we can try to access it via the browser. I'm going to be using the IP address of the Ubuntu server. You need to append port 9090 to the IP.
 
