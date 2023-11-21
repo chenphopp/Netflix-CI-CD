@@ -2,6 +2,7 @@
 Netflix clone app CI/CD project from  Ajay Kumar Yegireddi
 
 ## Step
+```
 Step 1 — Launch an Ubuntu(22.04) T2 Large Instance
 
 Step 2 — Install Jenkins, Docker and Trivy. Create a Sonarqube Container using Docker.
@@ -29,6 +30,7 @@ Step 12 — Kubernetes master and slave setup on Ubuntu (20.04)
 Step 13 — Access the Netflix app on the Browser.
 
 Step 14 — Terminate the AWS EC2 Instances.
+```
 
 ## Install Jenkins, Docker and Trivy
 ### Install Jenkins
@@ -59,3 +61,5 @@ sudo systemctl status jenkins
 sudo chmod 777 jenkins.sh
 ./jenkins.sh    # this will installl jenkins
 ```
+
+
