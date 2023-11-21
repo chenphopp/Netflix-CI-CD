@@ -77,6 +77,9 @@ chmod +x trivy.sh
 ./trivy.sh
 ```
 
+![image](https://github.com/chenphopp/Netflix-CI-CD/assets/82653803/788c199c-979f-4515-97f7-811c688b37ad)
+
+
 
 
 
