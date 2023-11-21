@@ -1,7 +1,7 @@
 # Netflix-CI-CD
 Netflix clone app CI/CD project from  Ajay Kumar Yegireddi
 
-## Step
+## Steps
 ```
 Step 1 — Launch an Ubuntu(22.04) T2 Large Instance
 
