@@ -101,16 +101,13 @@ Next, we will create a TMDB API key
 ![image](https://github.com/chenphopp/Netflix-CI-CD/assets/82653803/50b10b11-1997-41fc-88fa-a283bb3a9ec5)
 
 ## Step 4 — Install Prometheus and Grafana On the new Server
+Create user for prometheus
 ```
 sudo useradd \
     --system \
     --no-create-home \
     --shell /bin/false prometheus
 ```
---system - Will create a system account.
---no-create-home - We don't need a home directory for Prometheus or any other system accounts in our case.
---shell /bin/false - It prevents logging in as a Prometheus user.
-Prometheus - Will create a Prometheus user and a group with the same name.
 
 You can use the curl or wget command to download Prometheus.
 ```
