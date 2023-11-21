@@ -1011,6 +1011,7 @@ kubectl get svc #use anyone
 
 output:
 
+![image](https://github.com/chenphopp/Netflix-CI-CD/assets/82653803/b8b8fe40-d8de-4042-83d3-885f38ac5df2)
 
 ## Step 13: Terminate instances.
 Complete Pipeline
