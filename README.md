@@ -1,35 +1,12 @@
 # Netflix-CI-CD
 Netflix clone app CI/CD project from  Ajay Kumar Yegireddi
 
-## Steps
+## Prerequisites
+
 ```
-Step 1 — Launch an Ubuntu(22.04) T2 Large Instance
-
-Step 2 — Install Jenkins, Docker and Trivy. Create a Sonarqube Container using Docker.
-
-Step 3 — Create a TMDB API Key.
-
-Step 4 — Install Prometheus and Grafana On the new Server.
-
-Step 5 — Install the Prometheus Plugin and Integrate it with the Prometheus server.
-
-Step 6 — Email Integration With Jenkins and Plugin setup.
-
-Step 7 — Install Plugins like JDK, Sonarqube Scanner, Nodejs, and OWASP Dependency Check.
-
-Step 8 — Create a Pipeline Project in Jenkins using a Declarative Pipeline
-
-Step 9 — Install OWASP Dependency Check Plugins
-
-Step 10 — Docker Image Build and Push
-
-Step 11 — Deploy the image using Docker
-
-Step 12 — Kubernetes master and slave setup on Ubuntu (20.04)
-
-Step 13 — Access the Netflix app on the Browser.
-
-Step 14 — Terminate the AWS EC2 Instances.
+- Launch an Ubuntu(22.04) T2 Large Instance for Jenkins, Sornarqube, Grafana and Prometheus
+- Launch an Ubuntu(20.04) T2 Large Instance for K8S nodes
+- Create a TMDB API Key
 ```
 
 ## Install Jenkins, Docker and Trivy
@@ -63,7 +40,7 @@ sudo chmod 777 jenkins.sh
 ```
 ```
 # Access Jenkins and initial password
-<EC2 Public IP Address:8080>
+<EC2 Private IP Address:8080>
 sudo cat /var/lib/jenkins/secrets/initialAdminPassword
 ```
 
@@ -78,8 +55,28 @@ sudo chmod 777 /var/run/docker.sock
 ```
 
 ### Deploy Sonarqube
+
 ```
 docker run -d --name sonar -p 9000:9000 sonarqube:lts-community
 ```
+
+### Install Trivy
+
+```
+vi trivy.sh
+```
+```
+sudo apt-get install wget apt-transport-https gnupg lsb-release -y
+wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+sudo apt-get update
+sudo apt-get install trivy -y
+```
+```
+chmod +x trivy.sh
+./trivy.sh
+```
+
+
 
 
